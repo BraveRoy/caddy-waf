@@ -13,23 +13,31 @@ func init() {
 // UnmarshalCaddyfile
 func (w *CaddyWaf) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.NextArg()
+	var err error
 	for d.NextBlock(0) {
 		switch d.Val() {
 		case "args_rule":
 			d.NextArg()
-			w.loadArgsRule(d.Val())
+			err = w.loadArgsRule(d.Val())
 		case "post_rule":
 			d.NextArg()
-			w.loadPostRule(d.Val())
+			err = w.loadPostRule(d.Val())
 		case "user_agent_rule":
 			d.NextArg()
-			w.loadUserAgentRule(d.Val())
+			err = w.loadUserAgentRule(d.Val())
+		case "ip_allow_rule":
+			d.NextArg()
+			err = w.loadIpRule(d.Val(), false)
+		case "ip_block_rule":
+			d.NextArg()
+			err = w.loadIpRule(d.Val(), true)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
-
-
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.
 // syntax:

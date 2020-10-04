@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"html/template"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -27,6 +28,17 @@ func (w *CaddyWaf) loadUserAgentRule(rulePath string) error {
 	return err
 }
 
+func (w *CaddyWaf) loadIpRule(ipPath string, isBlock bool) error {
+	ipRule, err := loadRule(ipPath)
+	if isBlock {
+		w.IpBlockRule = ipRule
+	} else {
+		w.IpAllowRule = ipRule
+	}
+	return err
+
+}
+
 func loadRule(rulePath string) ([]string, error) {
 	file, err := os.Open(rulePath)
 	if err != nil {
@@ -41,6 +53,32 @@ func loadRule(rulePath string) ([]string, error) {
 	return rule, nil
 }
 
+// detectAllowIp
+func (w *CaddyWaf) detectIp(ipAddr string, isBlock bool) bool {
+
+	var ipRule []string
+	if isBlock {
+		ipRule = w.IpBlockRule
+	} else {
+		ipRule = w.IpAllowRule
+	}
+	ip := net.ParseIP(ipAddr)
+	for _, rule := range ipRule {
+		_, ipNet, err := net.ParseCIDR(rule)
+		if err != nil {
+			if ip.Equal(net.ParseIP(rule)) {
+				return true
+			}
+			continue
+		}
+		if ipNet.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // detectRequestArgs
 func (w *CaddyWaf) detectRequestArgs(r *http.Request) bool {
 	for _, rule := range w.ArgsRule {
@@ -48,8 +86,23 @@ func (w *CaddyWaf) detectRequestArgs(r *http.Request) bool {
 		if err != nil {
 			continue
 		}
-
 		if reg.MatchString(r.RequestURI) {
+			return true
+		}
+	}
+	return false
+}
+
+// detectUserAgent
+func (w *CaddyWaf) detectUserAgent(r *http.Request) bool {
+	userAgent := r.UserAgent()
+	for _, rule := range w.UserAgentRule {
+		reg, err := regexp.Compile(rule)
+		if err != nil {
+			continue
+		}
+
+		if reg.MatchString(userAgent) {
 			return true
 		}
 	}
@@ -58,8 +111,8 @@ func (w *CaddyWaf) detectRequestArgs(r *http.Request) bool {
 }
 
 // redirectIntercept Intercept request
-func (w *CaddyWaf) redirectIntercept(rw http.ResponseWriter) {
+func (w *CaddyWaf) redirectIntercept(rw http.ResponseWriter) error {
 	var tpl *template.Template
 	tpl, _ = template.New("default_listing").Parse(defaultWafTemplate)
-	tpl.Execute(rw, nil)
+	return tpl.Execute(rw, nil)
 }
