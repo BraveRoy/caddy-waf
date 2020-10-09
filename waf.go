@@ -49,11 +49,16 @@ func (w CaddyWaf) ServeHTTP(rw http.ResponseWriter, r *http.Request, next caddyh
 		return next.ServeHTTP(rw, r)
 	}
 
+	//ip deny rule
 	if w.detectIp(remoteAddr, true) {
 		return w.redirectIntercept(rw)
 	}
 
 	if w.detectRequestArgs(r) {
+		return w.redirectIntercept(rw)
+	}
+
+	if w.detectRequestBody(r) {
 		return w.redirectIntercept(rw)
 	}
 

@@ -2,8 +2,10 @@ package waf
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -28,8 +30,8 @@ func (w *CaddyWaf) loadUserAgentRule(rulePath string) error {
 	return err
 }
 
-func (w *CaddyWaf) loadIpRule(ipPath string, isBlock bool) error {
-	ipRule, err := loadRule(ipPath)
+func (w *CaddyWaf) loadIpRule(rulePath string, isBlock bool) error {
+	ipRule, err := loadRule(rulePath)
 	if isBlock {
 		w.IpBlockRule = ipRule
 	} else {
@@ -87,6 +89,34 @@ func (w *CaddyWaf) detectRequestArgs(r *http.Request) bool {
 			continue
 		}
 		if reg.MatchString(r.RequestURI) {
+			return true
+		}
+	}
+	return false
+}
+
+// detectRequestBody
+func (w *CaddyWaf) detectRequestBody(r *http.Request) bool {
+
+	//仅拦截post 类型的请求, 检测body实体里面是否有违规内容
+	if r.Method != "POST" {
+		return false
+	}
+
+	body, _ := ioutil.ReadAll(r.Body)
+	r.Body.Close() //  must close
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+	if len(body) == 0 {
+		return false
+	}
+
+	for _, rule := range w.PostRule {
+		reg, err := regexp.Compile(rule)
+		if err != nil {
+			continue
+		}
+		if reg.MatchString(string(body)) {
 			return true
 		}
 	}
