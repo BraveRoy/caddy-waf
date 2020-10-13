@@ -20,6 +20,7 @@ caddy
 
 # go modules
 vendor
+go.sum
 
 # goreleaser artifacts
 dist
