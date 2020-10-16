@@ -4,6 +4,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"strconv"
 )
 
 func init() {
@@ -31,6 +32,12 @@ func (w *CaddyWaf) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		case "ip_block_rule":
 			d.NextArg()
 			err = w.loadIpRule(d.Val(), true)
+		case "rate_limit_bucket":
+			d.NextArg()
+			w.RateLimitBucket, _ = strconv.Atoi(d.Val())
+		case "rate_limit_rate":
+			d.NextArg()
+			w.RateLimitRate, _ = strconv.ParseFloat(d.Val(), 64)
 		}
 		if err != nil {
 			return err

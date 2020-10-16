@@ -9,12 +9,15 @@ import (
 )
 
 type CaddyWaf struct {
-	logger        *zap.Logger
-	ArgsRule      []string
-	UserAgentRule []string
-	PostRule      []string
-	IpAllowRule   []string
-	IpBlockRule   []string
+	logger          *zap.Logger
+	ArgsRule        []string
+	UserAgentRule   []string
+	PostRule        []string
+	IpAllowRule     []string
+	IpBlockRule     []string
+	RateLimitBucket int
+	RateLimitRate   float64
+	rateLimit       *RateLimit
 }
 
 func init() {
@@ -31,6 +34,7 @@ func (CaddyWaf) CaddyModule() caddy.ModuleInfo {
 
 func (w *CaddyWaf) Provision(ctx caddy.Context) error {
 	w.logger = ctx.Logger(w) // g.logger is a *zap.Logger
+	w.rateLimit = NewRateLimit(w.logger, w.RateLimitBucket, w.RateLimitRate)
 	return nil
 }
 
@@ -49,20 +53,11 @@ func (w CaddyWaf) ServeHTTP(rw http.ResponseWriter, r *http.Request, next caddyh
 		return next.ServeHTTP(rw, r)
 	}
 
-	//ip deny rule
-	if w.detectIp(remoteAddr, true) {
-		return w.redirectIntercept(rw)
-	}
-
-	if w.detectRequestArgs(r) {
-		return w.redirectIntercept(rw)
-	}
-
-	if w.detectRequestBody(r) {
-		return w.redirectIntercept(rw)
-	}
-
-	if w.detectUserAgent(r) {
+	if w.detectIp(remoteAddr, true) ||
+		w.detectRequestArgs(r) ||
+		w.detectRequestBody(r) ||
+		w.detectUserAgent(r) ||
+		w.rateLimit.detect(remoteAddr, r) {
 		return w.redirectIntercept(rw)
 	}
 
