@@ -1,11 +1,12 @@
 package waf
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
-	"net/http"
-	"time"
 )
 
 type RateLimit struct {
@@ -27,7 +28,7 @@ func NewRateLimit(logger *zap.Logger, rateLimitBucket int, rateLimitRate float64
 func (rateLimit *RateLimit) detect(remoteIp string, r *http.Request) bool {
 
 	requestKey := remoteIp + r.Host
-	rateLimit.logger.Info("rate limiter request key is " + requestKey)
+	// rateLimit.logger.Info("rate limiter request key is " + requestKey)
 	var limiter *rate.Limiter
 
 	if val, found := rateLimit.cache.Get(requestKey); found {

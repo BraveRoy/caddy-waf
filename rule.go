@@ -143,6 +143,7 @@ func (w *CaddyWaf) detectUserAgent(r *http.Request) bool {
 // redirectIntercept Intercept request
 func (w *CaddyWaf) redirectIntercept(rw http.ResponseWriter) error {
 	var tpl *template.Template
+	rw.WriteHeader(http.StatusNotImplemented)
 	tpl, _ = template.New("default_listing").Parse(defaultWafTemplate)
 	return tpl.Execute(rw, nil)
 }
